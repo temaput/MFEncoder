@@ -1,4 +1,4 @@
-## MFEncoder & MFFormData Swift Package
+## Multipart Form Encoder & FormData Swift Package
 
 ### Overview
 
@@ -49,6 +49,13 @@ See the playgrounds included for more examples
 ### Installation
 
 The package is available as a Swift Package Manager package and can be added to your project via Xcode's package management feature.
+
+
+
+### Platform Support
+
+- **iOS**: iOS 12 and above (iOS 14 for proper mime attribution)
+- **macOS**: macOS 10.14 and above (macOS 11 for proper mime attribution)
 
 
 
