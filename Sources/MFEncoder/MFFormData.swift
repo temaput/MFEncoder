@@ -1,5 +1,11 @@
 import Foundation
 import UniformTypeIdentifiers
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
+import CoreImage
 
 func getMimeTypeFromURL(_ fileURL: URL) -> String? {
   var fileURL = fileURL
@@ -25,121 +31,13 @@ func getMimeTypeFromURL(_ fileURL: URL) -> String? {
 public class MFFormData {
   
   
-  struct FormDataItem {
-    var name: String
-    var value: Data
-    var filename: String?
-    var mime: String?
-  }
-  
-  public enum ValueOutput {
-    case stringCase(String)
-    case blobCase(Data)
-    
-    init?(_ item: FormDataItem) {
-      if item.filename != nil {
-        self = .blobCase(item.value)
-      } else {
-        if let stringValue = String(data: item.value, encoding: .utf8) {
-          self = .stringCase(stringValue)
-          
-        } else {
-          return nil
-        }
-      }
-      
-    }
-  }
-  
-  public enum DateEncodingStrategy {
-    /// Defer to `Date` for choosing an encoding. This is the default strategy.
-    case deferredToDate
-    
-    /// Encode the `Date` as a UNIX timestamp (as a JSON number).
-    case secondsSince1970
-    
-    /// Encode the `Date` as UNIX millisecond timestamp (as a JSON number).
-    case millisecondsSince1970
-    
-    /// Encode the `Date` as an ISO-8601-formatted string (in RFC 3339 format).
-    @available(macOS 10.12, iOS 10.0, watchOS 3.0, tvOS 10.0, *)
-    case iso8601
-    
-    /// Encode the `Date` as a string formatted by the given formatter.
-    case formatted(DateFormatter)
-    
-  }
-  
-  
-  
-  public struct ValuesIterator: IteratorProtocol {
-    public typealias Element = ValueOutput
-    private var current = 0
-    private let elements: Array<FormDataItem>
-    init(_ elements: Array<FormDataItem>) {
-      self.elements = elements
-    }
-    
-    mutating public func next() -> ValueOutput? {
-      defer {
-        current += 1
-      }
-      guard current < elements.count else {
-        return nil
-      }
-      return ValueOutput(elements[current])
-    }
-  }
-  public struct EntriesIterator: IteratorProtocol {
-    public typealias Element = (String, ValueOutput)
-    private var current = 0
-    private let elements: Array<FormDataItem>
-    init(_ elements: Array<FormDataItem>) {
-      self.elements = elements
-    }
-    
-    mutating public func next() -> Element? {
-      defer {
-        current += 1
-      }
-      guard current < elements.count else {
-        return nil
-      }
-      if let valueOutput = ValueOutput(elements[current]) {
-        return (elements[current].name, valueOutput)
-      } else {
-        return nil
-      }
-    }
-  }
-  
-  public struct KeysIterator: IteratorProtocol {
-    public typealias Element = String
-    
-    private var current = 0
-    private let elements: Array<FormDataItem>
-    init(_ elements: Array<FormDataItem>) {
-      self.elements = elements
-    }
-    
-    mutating public func next() -> String? {
-      defer {
-        current += 1
-        while current < elements.count && elements[current - 1].name == elements[current].name {
-          current += 1
-        }
-      }
-      return current < elements.count ? elements[current].name : nil
-    }
-  }
-  
   private var data: Array<FormDataItem> = []
   
   public var boundary: String
   
   public var dateEncodingStrategy: DateEncodingStrategy = .secondsSince1970
   
-  init() {
+  public init() {
     boundary = "Boundary-\(UUID().uuidString)"
   }
   
@@ -172,6 +70,7 @@ public class MFFormData {
   }
   
   
+  // MARK: - FormData API
   
   public func append(name: String, value: CustomStringConvertible) {
     
@@ -180,6 +79,47 @@ public class MFFormData {
     }
   }
   
+  
+  public func append(name: String, value: CGImage) {
+#if os(iOS)
+    let image = UIImage(cgImage: value)
+    append(name: name, value: image)
+#elseif os(macOS)
+    let image = NSImage(cgImage: value, size: .zero)
+    append(name: name, value: image)
+#endif
+    
+  }
+  
+  public func append(name: String, value: CIImage) {
+    if let image = value.cgImage {
+      append(name: name, value: image)
+    }
+  }
+  
+#if os(iOS)
+  public func append(name: String, value: UIImage) {
+    if let pngData = value.pngData() {
+      let filename = "\(name).png"
+      data.append(FormDataItem(name: name, value: pngData, filename: filename, mime: "image/png"))
+    }
+  }
+#endif
+  
+  
+  
+#if os(macOS)
+  public func append(name: String, value: NSImage) {
+    
+    if let tiffData = value.tiffRepresentation {
+      var filename = "\(name).tiff"
+      if let nsImageName = value.name() {
+        filename = "\(nsImageName).tiff"
+      }
+      data.append(FormDataItem(name: name, value: tiffData, filename: filename, mime: "image/tiff"))
+    }
+  }
+#endif
   
   public func append(name: String, value: URL) {
     
@@ -249,8 +189,9 @@ public class MFFormData {
     
   }
   
+  // MARK: - Helper methods to work with URLSession
   
-  var bodyForHttpRequest: Data {
+  public var bodyForHttpRequest: Data {
     
     var body = Data()
     
@@ -274,17 +215,130 @@ public class MFFormData {
     
   }
   
-  var contentTypeForHttpRequest: String {
+  public var contentTypeForHttpRequest: String {
     return "multipart/form-data; boundary=\(boundary)"
   }
   
   
-  func asHttpRequest(url: URL) -> URLRequest {
+  public func asHttpRequest(url: URL) -> URLRequest {
     var request = URLRequest(url: url)
     request.httpMethod = "POST"
     request.httpBody = bodyForHttpRequest
     request.setValue(contentTypeForHttpRequest, forHTTPHeaderField: "Content-Type")
     return request
+  }
+  
+  
+  
+  // MARK: - Internal Structures
+  struct FormDataItem {
+    var name: String
+    var value: Data
+    var filename: String?
+    var mime: String?
+  }
+  
+  public enum ValueOutput {
+    case stringCase(String)
+    case blobCase(Data)
+    
+    init?(_ item: FormDataItem) {
+      if item.filename != nil {
+        self = .blobCase(item.value)
+      } else {
+        if let stringValue = String(data: item.value, encoding: .utf8) {
+          self = .stringCase(stringValue)
+          
+        } else {
+          return nil
+        }
+      }
+      
+    }
+  }
+  
+  
+  
+  public enum DateEncodingStrategy {
+    /// Defer to `Date` for choosing an encoding. This is the default strategy.
+    case deferredToDate
+    
+    /// Encode the `Date` as a UNIX timestamp (as a JSON number).
+    case secondsSince1970
+    
+    /// Encode the `Date` as UNIX millisecond timestamp (as a JSON number).
+    case millisecondsSince1970
+    
+    /// Encode the `Date` as an ISO-8601-formatted string (in RFC 3339 format).
+    @available(macOS 10.12, iOS 10.0, watchOS 3.0, tvOS 10.0, *)
+    case iso8601
+    
+    /// Encode the `Date` as a string formatted by the given formatter.
+    case formatted(DateFormatter)
+    
+  }
+  
+  
+  
+  public struct ValuesIterator: IteratorProtocol, Sequence {
+    public typealias Element = ValueOutput
+    private var current = 0
+    private let elements: Array<FormDataItem>
+    init(_ elements: Array<FormDataItem>) {
+      self.elements = elements
+    }
+    
+    mutating public func next() -> ValueOutput? {
+      defer {
+        current += 1
+      }
+      guard current < elements.count else {
+        return nil
+      }
+      return ValueOutput(elements[current])
+    }
+  }
+  public struct EntriesIterator: IteratorProtocol, Sequence {
+    public typealias Element = (String, ValueOutput)
+    private var current = 0
+    private let elements: Array<FormDataItem>
+    init(_ elements: Array<FormDataItem>) {
+      self.elements = elements
+    }
+    
+    mutating public func next() -> Element? {
+      defer {
+        current += 1
+      }
+      guard current < elements.count else {
+        return nil
+      }
+      if let valueOutput = ValueOutput(elements[current]) {
+        return (elements[current].name, valueOutput)
+      } else {
+        return nil
+      }
+    }
+  }
+  
+  public struct KeysIterator: IteratorProtocol, Sequence {
+    public typealias Element = String
+    
+    private var current = 0
+    private let elements: Array<FormDataItem>
+    init(_ elements: Array<FormDataItem>) {
+      self.elements = elements
+    }
+    
+    mutating public func next() -> String? {
+      defer {
+        current += 1
+        while current < elements.count && elements[current - 1].name == elements[current].name {
+          current += 1
+        }
+      }
+      return current < elements.count ? elements[current].name : nil
+    }
   }
   
   

@@ -1,8 +1,10 @@
 import Foundation
 import MFEncoder
+import AppKit
+
 
 var swiftLogo = Bundle.main.url(forResource: "Swift_logo", withExtension: "svg")
-let someFilePng = URL(filePath: "/Users/artemputilov/Downloads/Screenshot 2023-08-25 at 14.18.08.png")
+let someFilePng = URL(filePath: "/Users/artemputilov/Downloads/Screenshot 2023-08-28 at 16.44.33.png")
 let someFile = URL(filePath: "/Users/artemputilov/1.Projects/MFEncoder/Playgrounds/MFPlayground.playground/Resources/Swift_logo.svg")
 
 
@@ -77,6 +79,7 @@ struct Profile: Encodable {
   
   var userRole: UserRole = .powerUser
   
+  
 }
 
 var components = DateComponents()
@@ -121,14 +124,14 @@ if let url = URL(string: apiURL), let data = try? encoder.encode(userData),
    let contentTypeForHttpRequest = encoder.contentTypeForHttpRequest {
   
   
-    Task.init {
-      var request = URLRequest(url: url)
-      request.httpMethod = "POST"
-      request.httpBody = data
-      request.setValue(contentTypeForHttpRequest, forHTTPHeaderField: "Content-Type")
-      await submitHttpRequest(request)
-  
-    }
+  Task.init {
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.httpBody = data
+    request.setValue(contentTypeForHttpRequest, forHTTPHeaderField: "Content-Type")
+//    await submitHttpRequest(request)
+    
+  }
   
   if let formData = encoder.asFormData {
     formData.getAll(name: "addresses[].street")
@@ -136,3 +139,38 @@ if let url = URL(string: apiURL), let data = try? encoder.encode(userData),
 }
 
 let formData = MFFormData()
+formData.append(name: "username", value: userData.profile.username)
+if let avatar = swiftLogo {
+  formData.append(name: "avatar", value: avatar)
+}
+formData.append(name: "addresses[]", value: userData.addresses[0].street)
+formData.append(name: "addresses[]", value: userData.addresses[1].street)
+if let avatarNS = NSImage(contentsOf: someFilePng) {
+  formData.append(name: "avatarNS", value: avatarNS)
+  
+}
+
+formData.set(name: "rank", value: userData.profile.rank)
+
+for key in formData.keys() {
+  print(key)
+}
+for value in formData.values() {
+  print(value)
+}
+for item in formData.entries() {
+  print(item)
+}
+
+formData.get(name: "rank")
+formData.get(name: "avatarNS")
+formData.getAll(name: "addresses[]")
+
+
+if let url = URL(string: apiURL) {
+  let request = formData.asHttpRequest(url: url)
+  Task.init {
+    await submitHttpRequest(request)
+  }
+}
+
