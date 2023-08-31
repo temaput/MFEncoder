@@ -27,6 +27,7 @@ func getMimeTypeFromURL(_ fileURL: URL) -> String? {
   }
 }
 
+var ascii: CharacterSet = CharacterSet(charactersIn: " " ... "~")
 
 public class MFFormData {
   
@@ -191,6 +192,10 @@ public class MFFormData {
   
   // MARK: - Helper methods to work with URLSession
   
+  private func encodeName(_ name: String) -> String {
+    return name.addingPercentEncoding(withAllowedCharacters: ascii) ?? "NA"
+  }
+  
   public var bodyForHttpRequest: Data {
     
     var body = Data()
@@ -198,10 +203,10 @@ public class MFFormData {
     data.forEach { formDataItem in
       body.append("--\(boundary)\r\n".data(using: .utf8)!)
       if let fileName = formDataItem.filename, let mime = formDataItem.mime {
-        body.append("Content-Disposition: form-data; name=\"\(formDataItem.name)\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"\(encodeName(formDataItem.name))\"; filename=\"\(encodeName(fileName))\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: \(mime)\r\n\r\n".data(using: .utf8)!)
       } else {
-        body.append("Content-Disposition: form-data; name=\"\(formDataItem.name)\"\r\n\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"\(encodeName(formDataItem.name))\"\r\n\r\n".data(using: .utf8)!)
       }
       body.append(formDataItem.value)
       body.append("\r\n".data(using: .utf8)!)
