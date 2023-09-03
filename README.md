@@ -26,7 +26,8 @@ The `MFEncoder & MFFormData` Swift package provides an efficient and user-friend
 #### Using MFEncoder
 
 ```swift
-let encoder = MFEncoder(dateEncodingStrategy: .iso8601, nestedFieldsEncodingStrategy: .multipleKeys)
+let encoder = MFEncoder()
+encoder.dateEncodingStrategy = .iso8601
 let userData = UserData()
 if let url = URL(string: apiURL), let data = try? encoder.encode(userData),
    let contentTypeForHttpRequest = encoder.contentTypeForHttpRequest {

@@ -4,8 +4,7 @@ import AppKit
 
 
 var swiftLogo = Bundle.main.url(forResource: "Swift_logo", withExtension: "svg")
-let someFilePng = URL(filePath: "/Users/artemputilov/Downloads/Screenshot 2023-08-28 at 16.44.33.png")
-let someFile = URL(filePath: "/Users/artemputilov/1.Projects/MFEncoder/Playgrounds/MFPlayground.playground/Resources/Swift_logo.svg")
+
 
 
 
@@ -118,7 +117,9 @@ let apiURL = "http://127.0.0.1:8000/form_data/test/"
 
 
 
-let encoder = MFEncoder(dateEncodingStrategy: .iso8601, nestedFieldsEncodingStrategy: .multipleKeys)
+let encoder = MFEncoder()
+encoder.dateEncodingStrategy = .iso8601
+encoder.nestedFieldsEncodingStrategy = .multipleKeys
 let userData = UserData()
 if let url = URL(string: apiURL), let data = try? encoder.encode(userData),
    let contentTypeForHttpRequest = encoder.contentTypeForHttpRequest {
@@ -145,12 +146,12 @@ if let avatar = swiftLogo {
 }
 formData.append(name: "addresses[]", value: userData.addresses[0].street)
 formData.append(name: "addresses[]", value: userData.addresses[1].street)
-if let avatarNS = NSImage(contentsOf: someFilePng) {
+if let avatarNS = NSImage(named: "Swift_logo.png") {
   formData.append(name: "avatarNS", value: avatarNS)
   
 }
 
-formData.set(name: "rank", value: userData.profile.rank)
+formData.set(name: "ранк", value: userData.profile.rank)
 
 for key in formData.keys() {
   print(key)

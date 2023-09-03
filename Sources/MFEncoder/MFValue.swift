@@ -3,7 +3,6 @@ import Foundation
 public enum NestedFieldsEncodingStrategy {
   case flattenKeys
   case multipleKeys
-  case jsonEmbed
 }
 enum MFValue: Equatable {
   
@@ -114,9 +113,10 @@ extension MFValue {
     }
   }
   
-  func write(nestedFieldsEncodingStrategy: NestedFieldsEncodingStrategy, dateEncodingStrategy: MFFormData.DateEncodingStrategy) -> MFFormData {
+  func write(nestedFieldsEncodingStrategy: NestedFieldsEncodingStrategy, dateEncodingStrategy: MFFormData.DateEncodingStrategy, fieldNamesEncodingStrategy: MFFormData.FieldNamesEncodingStrategy) -> MFFormData {
     let writer = MFValue.Writer(nestedFieldsEncodingStrategy: nestedFieldsEncodingStrategy)
     writer.formData.dateEncodingStrategy = dateEncodingStrategy
+    writer.formData.fieldNamesEncodingStrategy = fieldNamesEncodingStrategy
     writer.fillFormData(self)
     return writer.formData
     

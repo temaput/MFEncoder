@@ -38,6 +38,8 @@ public class MFFormData {
   
   public var dateEncodingStrategy: DateEncodingStrategy = .secondsSince1970
   
+  public var fieldNamesEncodingStrategy: FieldNamesEncodingStrategy = .noEncoding
+  
   public init() {
     boundary = "Boundary-\(UUID().uuidString)"
   }
@@ -193,7 +195,11 @@ public class MFFormData {
   // MARK: - Helper methods to work with URLSession
   
   private func encodeName(_ name: String) -> String {
-    return name.addingPercentEncoding(withAllowedCharacters: ascii) ?? "NA"
+    if fieldNamesEncodingStrategy == .percentEncoding {
+      return name.addingPercentEncoding(withAllowedCharacters: ascii) ?? "NA"
+    } else {
+      return name
+    }
   }
   
   public var bodyForHttpRequest: Data {
@@ -281,6 +287,10 @@ public class MFFormData {
     /// Encode the `Date` as a string formatted by the given formatter.
     case formatted(DateFormatter)
     
+  }
+  
+  public enum FieldNamesEncodingStrategy {
+    case percentEncoding, noEncoding
   }
   
   

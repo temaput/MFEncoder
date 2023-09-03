@@ -119,17 +119,17 @@ public class MFEncoder: Encoder {
   
   
   public var nestedFieldsEncodingStrategy: NestedFieldsEncodingStrategy = .flattenKeys
+  public var fieldNamesEncodingStrategy: MFFormData.FieldNamesEncodingStrategy = .noEncoding
   
   fileprivate var root: ContainedValue?
   
   private var formData: MFFormData?
   
-  public init(codingPath: [CodingKey] = [],
-              dateEncodingStrategy: MFFormData.DateEncodingStrategy = .deferredToDate,
-              nestedFieldsEncodingStrategy: NestedFieldsEncodingStrategy = .flattenKeys) {
-    self.dateEncodingStrategy = dateEncodingStrategy
-    self.nestedFieldsEncodingStrategy = nestedFieldsEncodingStrategy
+  public var boundary: String
+  
+  public init(codingPath: [CodingKey] = []) {
     self.codingPath = codingPath
+    self.boundary = "Boundary-\(UUID().uuidString)"
   }
   
   
@@ -163,7 +163,8 @@ public class MFEncoder: Encoder {
   
   public func encode<T: Encodable>(_ value: T) throws -> Data {
     let mfValue: MFValue = try encodeAsMFValue(value, for: nil)
-    formData = mfValue.write(nestedFieldsEncodingStrategy: nestedFieldsEncodingStrategy, dateEncodingStrategy: dateEncodingStrategy)
+    formData = mfValue.write(nestedFieldsEncodingStrategy: nestedFieldsEncodingStrategy, dateEncodingStrategy: dateEncodingStrategy, fieldNamesEncodingStrategy: fieldNamesEncodingStrategy)
+    formData?.boundary = boundary
     return formData!.bodyForHttpRequest
   }
   
@@ -173,17 +174,6 @@ public class MFEncoder: Encoder {
   
   public var asFormData: MFFormData? {
     return self.formData
-  }
-  
-  public var boundary: String {
-    get {
-      self.formData?.boundary ?? ""
-    }
-    set(newBoundary) {
-      if let fd = formData {
-        fd.boundary = newBoundary
-      }
-    }
   }
   
   func encodeAsMFValue<T: Encodable>(_ encodable: T, for additionalKey: CodingKey?) throws -> MFValue {
@@ -222,9 +212,11 @@ public class MFEncoder: Encoder {
   
   fileprivate func getEncoder(for additionalKey: CodingKey?) -> MFEncoder {
     if let additionalKey = additionalKey {
-      return MFEncoder(codingPath: self.codingPath + [additionalKey],
-                       dateEncodingStrategy: self.dateEncodingStrategy,
-                       nestedFieldsEncodingStrategy: self.nestedFieldsEncodingStrategy)
+      let encoder = MFEncoder(codingPath: self.codingPath + [additionalKey])
+      encoder.nestedFieldsEncodingStrategy = nestedFieldsEncodingStrategy
+      encoder.dateEncodingStrategy = dateEncodingStrategy
+      encoder.fieldNamesEncodingStrategy = fieldNamesEncodingStrategy
+      return encoder
     }
     
     return self
